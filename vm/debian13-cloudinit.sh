@@ -60,14 +60,16 @@ qm importdisk $VM_ID $IMAGE_NAME $STORAGE_NAME
 # Configure VM hardware
 qm set $VM_ID --efidisk0 $STORAGE_NAME:4 --scsi0 $STORAGE_NAME:0,size=$DISK_SIZE --ide2 $STORAGE_NAME:cloudinit --boot order=scsi0 --serial0 socket --agent enabled=$AGENT_ENABLE
 
-# Inject user-data into cloud-init drive
-qm cloudinit dump $VM_ID user < user-data.yaml
+# Create snippet directory if it doesn't exist
+mkdir -p /var/lib/vz/snippets
 
-qm create $VM_ID -agent 1${MACHINE} -tablet 0 -localtime 1 -bios ovmf${CPU_TYPE} -cores $CORE_COUNT -memory $MEMORY \
-  -name $HN -tags community-script -net0 virtio,bridge=$BRG,macaddr=$MAC$VLAN$MTU -onboot 1 -ostype l26 -scsihw virtio-scsi-pci
+# Copy user-data to snippets for cloud-init
+cp user-data.yaml /var/lib/vz/snippets/user-data-$VM_ID.yaml
 
-# Create empty disk for EFI
-pvesm alloc $STORAGE $VM_ID $DISK0 4M 1>&/dev/null
+# Inject user-data via cloud-init custom configuration
+qm set $VM_ID --cicustom user=$STORAGE_NAME:snippets/user-data-$VM_ID.yaml
+
+echo "VM $VM_ID created successfully with cloud-init user-data configured."
 
 # 
 qm importdisk $VM_ID ${FILE} $STORAGE ${DISK_IMPORT:-} 1>&/dev/null
