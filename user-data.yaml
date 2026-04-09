@@ -1,0 +1,14 @@
+#cloud-config
+user:
+  - name: martin
+    groups: sudo
+    shell: /bin/bash
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJK4qEu/2sjx4Ah7QZVWYaiqJxk1Z+lzyuHyDAfD5NAi
+packages:
+  - qemu-guest-agent
+package_update: true
+package_upgrade: true
+runcmd:
+  - systemctl enable qemu-guest-agent
+  - systemctl start qemu-guest-agent

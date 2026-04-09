@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+# Image and VM configuration
 IMAGE_URL=https://cloud.debian.org/images/cloud/trixie/latest/debian-13-genericcloud-amd64.qcow2
 IMAGE_NAME=$(basename $IMAGE_URL)
 VM_ID="9000"
@@ -26,8 +27,26 @@ VLAN=""
 MTU=""
 METHOD="default"
 
+# Define cleanup function to remove temp dir on exit
+function cleanup() {
+  popd >/dev/null
+  rm -rf $TEMP_DIR
+}
+
+# Set trap to run cleanup on script exit
+trap cleanup EXIT
+
+# Create a unique temporary directory
+TEMP_DIR=$(mktemp -d)
+
+# Change to the temp directory
+pushd $TEMP_DIR >/dev/null
+
 # Download the image
-wget $IMAGE_URL -O /tmp/$IMAGE_NAME
+wget $IMAGE_URL -O $IMAGE_NAME
+
+# Download user-data.yaml from GitHub
+wget https://raw.githubusercontent.com/martineie/proxmox-scripts/main/user-data.yaml -O user-data.yaml
 
 # Delete existing VM if it exists
 qm destroy $VM_ID
@@ -36,16 +55,17 @@ qm destroy $VM_ID
 qm create $VM_ID --name $VM_NAME --net0 virtio,bridge=$BRIDGE --scsihw $SCSI_CONTROLLER --machine $MACHINE --bios $BIOS --cpu $CPU_TYPE --cores $CORES --memory $MEMORY
 
 # Import operating system disk
-qm importdisk $VM_ID /tmp/$IMAGE_NAME $STORAGE_NAME
-
-
-virt-customize -a /tmp/$IMAGE_NAME --install qemu-guest-agent
+qm importdisk $VM_ID $IMAGE_NAME $STORAGE_NAME
 
 # Configure VM hardware
-qm set $VM_ID -efidisk0 ${DISK0_REF}${FORMAT} -scsi0 ${DISK1_REF},${DISK_CACHE}${THIN}size=${DISK_SIZE} -scsi1 ${STORAGE}:cloudinit -boot order=scsi0 -serial0 socket >/dev/null
+qm set $VM_ID --efidisk0 $STORAGE_NAME:4 --scsi0 $STORAGE_NAME:0,size=$DISK_SIZE --scsi1 $STORAGE_NAME:cloudinit --boot order=scsi0 --serial0 socket --agent enabled=$AGENT_ENABLE
+
+# Inject user-data into cloud-init drive
+qm cloudinit dump $VM_ID user-data.yaml
+#qm set $VM_ID --efidisk0 $STORAGE_NAME:4 --scsi0 $STORAGE_NAME:0,import-from=/tmp/$IMAGE_NAME,size=$DISK_SIZE --scsi1 $STORAGE_NAME:cloudinit --boot order=scsi0 --serial0 socket --agent enabled=$AGENT_ENABLE
 
 # Resize disk
-qm resize $VM_ID scsi0 ${DISK_SIZE} >/dev/null
+qm resize $VM_ID scsi0 $DISK_SIZE >/dev/null
 
 # Remove cd/dvd drive
 if qm config $VM_ID | grep -q '^ide2:'; then
@@ -58,7 +78,7 @@ qm set $VM_ID --ide2 $STORAGE:cloudinit
 
 #qm template $VM_ID
 
-m create $VM_ID -agent 1${MACHINE} -tablet 0 -localtime 1 -bios ovmf${CPU_TYPE} -cores $CORE_COUNT -memory $MEMORY \
+qm create $VM_ID -agent 1${MACHINE} -tablet 0 -localtime 1 -bios ovmf${CPU_TYPE} -cores $CORE_COUNT -memory $MEMORY \
   -name $HN -tags community-script -net0 virtio,bridge=$BRG,macaddr=$MAC$VLAN$MTU -onboot 1 -ostype l26 -scsihw virtio-scsi-pci
 
 # Create empty disk for EFI
@@ -73,4 +93,3 @@ if [ "$CLOUD_INIT" == "yes" ]; then
     -scsi1 ${STORAGE}:cloudinit \
     -boot order=scsi0 \
     -serial0 socket >/dev/null
-
