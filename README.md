@@ -11,7 +11,7 @@ This repository contains scripts to automate the creation of virtual machines in
 Run the script directly from the repository:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/martineie/proxmox-scripts/main/debian13-cloudinit.sh | bash
+curl -fsSL https://raw.githubusercontent.com/martineie/proxmox-scripts/main/vm/debian13-cloudinit.sh | bash
 ```
 
 The script will read the necessary configuration from the GitHub repository and create the VM.

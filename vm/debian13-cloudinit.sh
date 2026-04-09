@@ -46,7 +46,7 @@ pushd $TEMP_DIR >/dev/null
 wget $IMAGE_URL -O $IMAGE_NAME
 
 # Download user-data.yaml from GitHub
-wget https://raw.githubusercontent.com/martineie/proxmox-scripts/main/user-data.yaml -O user-data.yaml
+wget https://raw.githubusercontent.com/martineie/proxmox-scripts/main/vm/user-data.yaml -O user-data.yaml
 
 # Delete existing VM if it exists
 qm destroy $VM_ID
@@ -61,22 +61,7 @@ qm importdisk $VM_ID $IMAGE_NAME $STORAGE_NAME
 qm set $VM_ID --efidisk0 $STORAGE_NAME:4 --scsi0 $STORAGE_NAME:0,size=$DISK_SIZE --scsi1 $STORAGE_NAME:cloudinit --boot order=scsi0 --serial0 socket --agent enabled=$AGENT_ENABLE
 
 # Inject user-data into cloud-init drive
-qm cloudinit dump $VM_ID user-data.yaml
-#qm set $VM_ID --efidisk0 $STORAGE_NAME:4 --scsi0 $STORAGE_NAME:0,import-from=/tmp/$IMAGE_NAME,size=$DISK_SIZE --scsi1 $STORAGE_NAME:cloudinit --boot order=scsi0 --serial0 socket --agent enabled=$AGENT_ENABLE
-
-# Resize disk
-qm resize $VM_ID scsi0 $DISK_SIZE >/dev/null
-
-# Remove cd/dvd drive
-if qm config $VM_ID | grep -q '^ide2:'; then
-  qm set $VM_ID --delete ide2
-fi
-
-# Create cloud-init drive
-qm set $VM_ID --ide2 $STORAGE:cloudinit
-
-
-#qm template $VM_ID
+qm cloudinit dump $VM_ID user < user-data.yaml
 
 qm create $VM_ID -agent 1${MACHINE} -tablet 0 -localtime 1 -bios ovmf${CPU_TYPE} -cores $CORE_COUNT -memory $MEMORY \
   -name $HN -tags community-script -net0 virtio,bridge=$BRG,macaddr=$MAC$VLAN$MTU -onboot 1 -ostype l26 -scsihw virtio-scsi-pci
