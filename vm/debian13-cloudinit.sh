@@ -58,7 +58,7 @@ qm create $VM_ID --name $VM_NAME --net0 virtio,bridge=$BRIDGE --scsihw $SCSI_CON
 qm importdisk $VM_ID $IMAGE_NAME $STORAGE_NAME
 
 # Configure VM hardware
-qm set $VM_ID --efidisk0 $STORAGE_NAME:4 --scsi0 $STORAGE_NAME:0,size=$DISK_SIZE --scsi1 $STORAGE_NAME:cloudinit --boot order=scsi0 --serial0 socket --agent enabled=$AGENT_ENABLE
+qm set $VM_ID --efidisk0 $STORAGE_NAME:4 --scsi0 $STORAGE_NAME:0,size=$DISK_SIZE --ide2 $STORAGE_NAME:cloudinit --boot order=scsi0 --serial0 socket --agent enabled=$AGENT_ENABLE
 
 # Inject user-data into cloud-init drive
 qm cloudinit dump $VM_ID user < user-data.yaml
