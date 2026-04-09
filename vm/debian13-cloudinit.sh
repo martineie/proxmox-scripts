@@ -58,15 +58,6 @@ qm create $VM_ID --name $VM_NAME --net0 virtio,bridge=$BRIDGE --scsihw $SCSI_CON
 qm importdisk $VM_ID $IMAGE_NAME $STORAGE_NAME
 
 # Configure VM hardware
-qm set $VM_ID --efidisk0 $STORAGE_NAME:4 --scsi0 $STORAGE_NAME:0,size=$DISK_SIZE --ide2 $STORAGE_NAME:cloudinit --boot order=scsi0 --serial0 socket --agent enabled=$AGENT_ENABLE
-
-# Create snippet directory if it doesn't exist
-mkdir -p /var/lib/vz/snippets
-
-# Copy user-data to snippets for cloud-init
-cp user-data.yaml /var/lib/vz/snippets/user-data-$VM_ID.yaml
-
-# Inject user-data via cloud-init custom configuration
-qm set $VM_ID --cicustom user=local:snippets/user-data-$VM_ID.yaml
+qm set $VM_ID --efidisk0 $STORAGE_NAME:4 --scsi0 $STORAGE_NAME:0,size=$DISK_SIZE --ide2 $STORAGE_NAME:cloudinit --boot order=scsi0 --serial0 socket --agent enabled=$AGENT_ENABLE --cicustom user=local:snippets/user-data-$VM_ID.yaml
 
 echo "VM $VM_ID created successfully with cloud-init user-data configured."
