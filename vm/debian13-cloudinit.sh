@@ -67,16 +67,6 @@ mkdir -p /var/lib/vz/snippets
 cp user-data.yaml /var/lib/vz/snippets/user-data-$VM_ID.yaml
 
 # Inject user-data via cloud-init custom configuration
-qm set $VM_ID --cicustom user=$STORAGE_NAME:snippets/user-data-$VM_ID.yaml
+qm set $VM_ID --cicustom user=local:snippets/user-data-$VM_ID.yaml
 
 echo "VM $VM_ID created successfully with cloud-init user-data configured."
-
-# 
-qm importdisk $VM_ID ${FILE} $STORAGE ${DISK_IMPORT:-} 1>&/dev/null
-if [ "$CLOUD_INIT" == "yes" ]; then
-  qm set $VM_ID \
-    -efidisk0 ${DISK0_REF}${FORMAT} \
-    -scsi0 ${DISK1_REF},${DISK_CACHE}${THIN}size=${DISK_SIZE} \
-    -scsi1 ${STORAGE}:cloudinit \
-    -boot order=scsi0 \
-    -serial0 socket >/dev/null
