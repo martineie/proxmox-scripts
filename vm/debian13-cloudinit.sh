@@ -48,6 +48,11 @@ wget $IMAGE_URL -O $IMAGE_NAME
 # Download user-data.yaml from GitHub
 wget https://raw.githubusercontent.com/martineie/proxmox-scripts/main/vm/user-data.yaml -O user-data.yaml
 
+# Download user-data.yaml directly to snippets directory
+SNIPPETS_DIR="/var/lib/vz/snippets"
+mkdir -p $SNIPPETS_DIR  # Ensure directory exists
+wget https://raw.githubusercontent.com/martineie/proxmox-scripts/main/vm/user-data.yaml -O $SNIPPETS_DIR/user-data-$VM_ID.yaml
+
 # Delete existing VM if it exists
 qm destroy $VM_ID
 
