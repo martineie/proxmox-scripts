@@ -23,7 +23,7 @@ HOSTNAME="debian"
 
 # Network configuration
 BRIDGE="vmbr0"
-MAC="$GEN_MAC"
+#MAC="$GEN_MAC"
 VLAN=""
 MTU=""
 METHOD="default"
