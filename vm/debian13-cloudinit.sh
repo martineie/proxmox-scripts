@@ -61,7 +61,10 @@ qm create $VM_ID --name $VM_NAME --net0 virtio,bridge=$BRIDGE --scsihw $SCSI_CON
 qm importdisk $VM_ID $IMAGE_NAME $STORAGE_NAME
 
 # Configure VM hardware
-qm set $VM_ID --efidisk0 $STORAGE_NAME:4M --scsi0 $STORAGE_NAME,size=$DISK_SIZE --ide2 local:cloudinit --boot order=scsi0 --serial0 socket --agent enabled=$AGENT_ENABLE --cicustom user=local:snippets/user-data-$VM_ID.yaml
+qm set $VM_ID --efidisk0 $STORAGE_NAME:4M --scsi0 $STORAGE_NAME:vm-9000-disk-0 --ide2 local:cloudinit --boot order=scsi0 --serial0 socket --agent enabled=$AGENT_ENABLE --cicustom user=local:snippets/user-data-$VM_ID.yaml
+
+# Resize the disk to the desired size
+qm resize 9000 scsi0 $DISK_SIZE
 
 # Regenerate cloud-init ISO with custom data
 qm cloudinit update $VM_ID
