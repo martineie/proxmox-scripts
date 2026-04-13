@@ -37,7 +37,7 @@ function cleanup() {
 # Set trap to run cleanup on script exit
 trap cleanup EXIT
 
-# Create a unique temporary directory
+# Create a unique temporary directory for downloads
 TEMP_DIR=$(mktemp -d)
 
 # Change to the temp directory
@@ -46,7 +46,7 @@ pushd $TEMP_DIR >/dev/null
 # Download the image
 wget $IMAGE_URL -O $IMAGE_NAME
 
-# Download user-data.yaml directly to snippets directory
+# Download user-data.yaml to snippets directory
 SNIPPETS_DIR="/var/lib/vz/snippets"
 mkdir -p $SNIPPETS_DIR  # Ensure directory exists
 wget https://raw.githubusercontent.com/martineie/proxmox-scripts/main/vm/user-data.yaml -O $SNIPPETS_DIR/user-data-$VM_ID.yaml
@@ -55,19 +55,40 @@ wget https://raw.githubusercontent.com/martineie/proxmox-scripts/main/vm/user-da
 qm destroy $VM_ID
 
 # Create new VM
-qm create $VM_ID --name $VM_NAME --net0 virtio,bridge=$BRIDGE --scsihw $SCSI_CONTROLLER --machine $MACHINE --bios $BIOS --cpu $CPU_TYPE --cores $CORES --memory $MEMORY
+qm create $VM_ID \
+  --name $VM_NAME \
+  --machine $MACHINE \
+  --bios $BIOS \
+  --cpu $CPU_TYPE \
+  --cores $CORES \
+  --memory $MEMORY \
+  --net0 virtio,bridge=$BRIDGE \
+  --scsihw $SCSI_CONTROLLER \
+  --agent enabled=$AGENT_ENABLE \
+  --vga serial0 \
+  --serial0 socket
 
 # Import operating system disk
 qm importdisk $VM_ID $IMAGE_NAME $STORAGE_NAME
 
-# Configure VM hardware
-qm set $VM_ID --efidisk0 $STORAGE_NAME:4 --scsi0 $STORAGE_NAME:vm-9000-disk-0 --ide2 local:cloudinit --boot order=scsi0 --serial0 socket --agent enabled=$AGENT_ENABLE --cicustom user=local:snippets/user-data-$VM_ID.yaml
-
+# Configure disks
+qm set $VM_ID --efidisk0 $STORAGE_NAME:4
+qm set $VM_ID --scsi0 $STORAGE_NAME:1
+qm set $VM_ID --ide0 $STORAGE_NAME:cloudinit
 
 # Resize the disk to the desired size
-qm resize 9000 scsi0 $DISK_SIZE
+qm resize $VM_ID scsi0 $DISK_SIZE
+
+# Set boot order to ensure the VM boots from the disk
+qm set $VM_ID --boot order=scsi0
+
+# Configure cloud-init to use the custom user-data
+qm set $VM_ID --cicustom "user=local:snippets/user-data-$VM_ID.yaml"
 
 # Regenerate cloud-init ISO with custom data
-qm cloudinit update $VM_ID
+# qm cloudinit update $VM_ID
+
+# Configure network to use DHCP
+qm set $VM_ID --ipconfig0 ip=dhcp
 
 echo "VM $VM_ID created successfully with cloud-init user-data configured."
