@@ -43,6 +43,7 @@ IPV4_GW="${IPV4_GW:-}"
 
 # Execution helpers
 DRY_RUN="${DRY_RUN:-false}"
+FORCE_RECREATE="${FORCE_RECREATE:-false}"
 
 # Storage tuning defaults
 THIN="${THIN:-discard=on,ssd=1,}"
@@ -174,9 +175,18 @@ done
 # ------------------------------
 # VM create and disk attach flow
 # ------------------------------
-qm destroy "$VM_ID" >/dev/null 2>&1 || true
-if [[ "$DRY_RUN" == "true" ]]; then
-  echo "[dry-run] qm destroy $VM_ID"
+# Only destroy an existing VM when explicitly requested.
+if qm status "$VM_ID" >/dev/null 2>&1; then
+  if [[ "$FORCE_RECREATE" == "true" ]]; then
+    if [[ "$DRY_RUN" == "true" ]]; then
+      echo "[dry-run] qm destroy $VM_ID --destroy-unreferenced-disks 1 --purge 1"
+    else
+      qm destroy "$VM_ID" --destroy-unreferenced-disks 1 --purge 1 >/dev/null
+    fi
+  else
+    echo "VM $VM_ID already exists. Set FORCE_RECREATE=true to destroy and recreate it."
+    exit 1
+  fi
 fi
 
 NET0="virtio,bridge=$BRIDGE"
@@ -196,12 +206,12 @@ run_cmd qm create "$VM_ID" \
   --vga serial0 \
   --serial0 socket
 
-run_cmd qm importdisk "$VM_ID" "$IMAGE_NAME" "$STORAGE_NAME" ${DISK_IMPORT:-}
 if [[ "$DRY_RUN" == "true" ]]; then
   echo "[dry-run] pvesm alloc $STORAGE_NAME $VM_ID $DISK0 4M >/dev/null"
 else
   pvesm alloc "$STORAGE_NAME" "$VM_ID" "$DISK0" 4M >/dev/null
 fi
+run_cmd qm importdisk "$VM_ID" "$IMAGE_NAME" "$STORAGE_NAME" ${DISK_IMPORT:-}
 
 run_cmd qm set "$VM_ID" \
   --efidisk0 "${DISK0_REF}${FORMAT}" \
